@@ -313,9 +313,9 @@ static int is_ext4(const char *file, char *devname)
 			return -1;
 		}
 		memset(mnt_type, 0, strlen(mnt->mnt_type) + 1);
-		strncpy(mnt_type, mnt->mnt_type, strlen(mnt->mnt_type));
-		strncpy(lost_found_dir, mnt->mnt_dir, PATH_MAX);
-		strncpy(devname, mnt->mnt_fsname, strlen(mnt->mnt_fsname) + 1);
+		strcpy(mnt_type, mnt->mnt_type);
+		strncpy(lost_found_dir, mnt->mnt_dir, PATH_MAX+1);
+		strncpy(devname, mnt->mnt_fsname, PATH_MAX+1);
 	}
 
 	endmntent(fp);
