@@ -50,6 +50,9 @@
 #endif /* defined(__GNU__)     && defined(EXT2_OS_HURD) */
 #endif /* defined(__linux__)   && defined(EXT2_OS_LINUX) */
 
+int use_source_date_epoch;
+time_t source_date_epoch;
+
 /*
  * Calculate the number of GDT blocks to reserve for online filesystem growth.
  * The absolute maximum number of GDT blocks we can reserve is determined by
@@ -128,6 +131,14 @@ errcode_t ext2fs_initialize(const char *name, int flags,
 	time_env = getenv("E2FSPROGS_FAKE_TIME");
 	if (time_env)
 		fs->now = strtoul(time_env, NULL, 0);
+
+	/* also accept SOURCE_DATE_EPOCH as encouraged by reproducible-builds.org */
+	time_env = getenv("SOURCE_DATE_EPOCH");
+	if (time_env) {
+		use_source_date_epoch = 1;
+		source_date_epoch = strtoul(time_env, NULL, 0);
+		fs->now = source_date_epoch;
+	}
 
 	io_flags = IO_FLAG_RW;
 	if (flags & EXT2_FLAG_EXCLUSIVE)
@@ -218,7 +229,8 @@ errcode_t ext2fs_initialize(const char *name, int flags,
 	}
 
 	set_field(s_checkinterval, 0);
-	super->s_mkfs_time = super->s_lastcheck = fs->now ? fs->now : time(NULL);
+	super->s_mkfs_time = super->s_lastcheck =
+		(fs->now || use_source_date_epoch) ? fs->now : time(0);
 
 	super->s_creator_os = CREATOR_OS;
 

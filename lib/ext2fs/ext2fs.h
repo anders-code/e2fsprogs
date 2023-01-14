@@ -1512,6 +1512,9 @@ errcode_t ext2fs_read_ind_block(ext2_filsys fs, blk_t blk, void *buf);
 errcode_t ext2fs_write_ind_block(ext2_filsys fs, blk_t blk, void *buf);
 
 /* initialize.c */
+extern int use_source_date_epoch;
+extern time_t source_date_epoch;
+
 extern errcode_t ext2fs_initialize(const char *name, int flags,
 				   struct ext2_super_block *param,
 				   io_manager manager, ext2_filsys *ret_fs);

@@ -1042,7 +1042,7 @@ errcode_t ext2fs_write_new_inode(ext2_filsys fs, ext2_ino_t ino,
 	int 			size = EXT2_INODE_SIZE(fs->super);
 	struct ext2_inode_large	*large_inode;
 	errcode_t		retval;
-	__u32 			t = fs->now ? fs->now : time(NULL);
+	__u32 			t = (fs->now || use_source_date_epoch) ? fs->now : time(0);
 
 	if (!inode->i_ctime)
 		inode->i_ctime = t;

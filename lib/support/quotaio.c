@@ -119,7 +119,7 @@ errcode_t quota_inode_truncate(ext2_filsys fs, ext2_ino_t ino)
 			break;
 
 	if (qtype != MAXQUOTAS) {
-		inode.i_dtime = fs->now ? fs->now : time(0);
+		inode.i_dtime = (fs->now || use_source_date_epoch) ? fs->now : time(0);
 		if (!ext2fs_inode_has_valid_blocks2(fs, &inode))
 			return 0;
 		err = ext2fs_punch(fs, ino, &inode, NULL, 0, ~0ULL);
@@ -288,7 +288,7 @@ static errcode_t quota_inode_init_new(ext2_filsys fs, ext2_ino_t ino)
 	memset(&inode, 0, sizeof(struct ext2_inode));
 	ext2fs_iblk_set(fs, &inode, 0);
 	inode.i_atime = inode.i_mtime =
-		inode.i_ctime = fs->now ? fs->now : time(0);
+		inode.i_ctime = (fs->now || use_source_date_epoch) ? fs->now : time(0);
 	inode.i_links_count = 1;
 	inode.i_mode = LINUX_S_IFREG | 0600;
 	inode.i_flags |= EXT2_IMMUTABLE_FL;

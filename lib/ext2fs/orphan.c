@@ -186,7 +186,7 @@ errcode_t ext2fs_create_orphan_file(ext2_filsys fs, blk_t num_blocks)
 		goto out;
 	ext2fs_iblk_set(fs, &inode, 0);
 	inode.i_atime = inode.i_mtime =
-		inode.i_ctime = fs->now ? fs->now : time(0);
+		inode.i_ctime = (fs->now || use_source_date_epoch) ? fs->now : time(0);
 	inode.i_links_count = 1;
 	inode.i_mode = LINUX_S_IFREG | 0600;
 	ext2fs_iblk_add_blocks(fs, &inode, oi.alloc_blocks);

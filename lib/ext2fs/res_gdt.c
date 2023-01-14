@@ -135,7 +135,7 @@ errcode_t ext2fs_create_resize_inode(ext2_filsys fs)
 		retval = ext2fs_inode_size_set(fs, &inode, inode_size);
 		if (retval)
 			goto out_free;
-		inode.i_ctime = fs->now ? fs->now : time(0);
+		inode.i_ctime = (fs->now || use_source_date_epoch) ? fs->now : time(0);
 	}
 
 	for (rsv_off = 0, gdt_off = fs->desc_blocks,
@@ -227,7 +227,8 @@ out_inode:
 	       EXT2_I_SIZE(&inode));
 #endif
 	if (inode_dirty) {
-		inode.i_atime = inode.i_mtime = fs->now ? fs->now : time(0);
+		inode.i_atime = inode.i_mtime =
+			(fs->now || use_source_date_epoch) ? fs->now : time(0);
 		retval2 = ext2fs_write_new_inode(fs, EXT2_RESIZE_INO, &inode);
 		if (!retval)
 			retval = retval2;

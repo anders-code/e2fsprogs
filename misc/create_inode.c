@@ -125,9 +125,9 @@ static errcode_t set_inode_extra(ext2_filsys fs, ext2_ino_t ino,
 	inode.i_gid = st->st_gid;
 	ext2fs_set_i_gid_high(inode, st->st_gid >> 16);
 	inode.i_mode = (LINUX_S_IFMT & inode.i_mode) | (~S_IFMT & st->st_mode);
-	inode.i_atime = st->st_atime;
-	inode.i_mtime = st->st_mtime;
-	inode.i_ctime = st->st_ctime;
+	inode.i_atime = use_source_date_epoch ? source_date_epoch : st->st_atime;
+	inode.i_mtime = use_source_date_epoch ? source_date_epoch : st->st_mtime;
+	inode.i_ctime = use_source_date_epoch ? source_date_epoch : st->st_ctime;
 
 	retval = ext2fs_write_inode(fs, ino, &inode);
 	if (retval)
@@ -308,7 +308,7 @@ errcode_t do_mknod_internal(ext2_filsys fs, ext2_ino_t cwd, const char *name,
 	memset(&inode, 0, sizeof(inode));
 	inode.i_mode = mode;
 	inode.i_atime = inode.i_ctime = inode.i_mtime =
-		fs->now ? fs->now : time(0);
+		(fs->now || use_source_date_epoch) ? fs->now : time(0);
 
 	if (filetype != S_IFIFO) {
 		devmajor = major(st_rdev);
@@ -683,7 +683,7 @@ errcode_t do_write_internal(ext2_filsys fs, ext2_ino_t cwd, const char *src,
 	memset(&inode, 0, sizeof(inode));
 	inode.i_mode = (statbuf.st_mode & ~S_IFMT) | LINUX_S_IFREG;
 	inode.i_atime = inode.i_ctime = inode.i_mtime =
-		fs->now ? fs->now : time(0);
+		(fs->now || use_source_date_epoch) ? fs->now : time(0);
 	inode.i_links_count = 1;
 	retval = ext2fs_inode_size_set(fs, &inode, statbuf.st_size);
 	if (retval)
