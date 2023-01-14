@@ -1676,7 +1676,7 @@ profile_error:
 	}
 
 	while ((c = getopt (argc, argv,
-		    "b:cd:e:g:i:jl:m:no:qr:s:t:vC:DE:FG:I:J:KL:M:N:O:R:ST:U:Vz:")) != EOF) {
+		    "b:cd:e:g:i:jl:m:no:qr:s:t:vx:C:DE:FG:I:J:KL:M:N:O:R:ST:U:Vz:")) != EOF) {
 		switch (c) {
 		case 'b':
 			blocksize = parse_num_blocks2(optarg, -1);
@@ -1914,6 +1914,13 @@ profile_error:
 		case 'v':
 			verbose = 1;
 			break;
+		case 'x':
+		{
+			struct filter_list_s *filter = calloc(1, sizeof(*filter));
+			filter->pattern = strdup(optarg);
+			list_add_tail(&filter->list, &exclude_filter_list.list);
+			break;
+		}
 		case 'V':
 			/* Print version number and exit */
 			show_version_only++;

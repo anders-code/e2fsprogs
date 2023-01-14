@@ -32,6 +32,12 @@
 #include <sys/sysmacros.h>
 #endif
 
+#ifndef _WIN32
+#include <fnmatch.h>
+#else
+#include <shlwapi.h>
+#endif
+
 #include <ext2fs/ext2fs.h>
 #include <ext2fs/ext2_types.h>
 #include <ext2fs/fiemap.h>
@@ -41,6 +47,10 @@
 
 /* 64KiB is the minimum blksize to best minimize system call overhead. */
 #define COPY_FILE_BUFLEN	65536
+
+struct filter_list_s exclude_filter_list = {
+	.list = LIST_HEAD_INIT(exclude_filter_list.list)
+};
 
 static int ext2_file_type(unsigned int mode)
 {
@@ -801,7 +811,26 @@ out:
 static int alphasort(const struct dirent **a, const struct dirent **b) {
 	return strcoll((*a)->d_name, (*b)->d_name);
 }
+
+#define FNM_PATHNAME 0
+#define fnmatch(pat, str, flags) PathMatchSpecA((str), (pat))
 #endif
+
+static int filter_exclude(const char *name, const char *path)
+{
+	struct list_head *p;
+	list_for_each (p, &exclude_filter_list.list)
+	{
+		struct filter_list_s *f = list_entry(p, struct filter_list_s, list);
+
+		const char *match_str = (f->pattern[0] == '/') ? path : name;
+
+		if (fnmatch(f->pattern, match_str, FNM_PATHNAME) == 0)
+			return 1;
+	}
+
+	return 0;
+}
 
 /* Copy files from source_dir to fs in alphabetical order */
 static errcode_t __populate_fs(ext2_filsys fs, ext2_ino_t parent_ino,
@@ -875,6 +904,12 @@ static errcode_t __populate_fs(ext2_filsys fs, ext2_ino_t parent_ino,
 			com_err(__func__, retval,
 				"while appending %s", name);
 			goto out;
+		}
+
+		if (filter_exclude(name, target->path)) {
+			target->path_len = cur_dir_path_len;
+			target->path[target->path_len] = 0;
+			continue;
 		}
 
 		if (fs_callbacks && fs_callbacks->create_new_inode) {

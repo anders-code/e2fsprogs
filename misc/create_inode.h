@@ -7,6 +7,7 @@
 #include "et/com_err.h"
 #include "e2p/e2p.h"
 #include "ext2fs/ext2fs.h"
+#include "ext2fs/kernel-list.h"
 
 struct hdlink_s
 {
@@ -32,6 +33,13 @@ struct fs_ops_callbacks {
 		const char *target_path, const char *name,
 		ext2_ino_t parent_ino, ext2_ino_t root, mode_t mode);
 };
+
+struct filter_list_s {
+	struct list_head list;
+	const char *pattern;
+};
+
+extern struct filter_list_s exclude_filter_list;
 
 extern int no_copy_xattrs; 	/* this should eventually be a flag
 				   passed to populate_fs3() */
