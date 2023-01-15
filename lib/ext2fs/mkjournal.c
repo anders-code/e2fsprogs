@@ -312,8 +312,6 @@ static errcode_t write_journal_inode(ext2_filsys fs, ext2_ino_t journal_ino,
 
 	inode_size = (unsigned long long)fs->blocksize *
 			(jparams->num_journal_blocks + jparams->num_fc_blocks);
-	inode.i_mtime = inode.i_ctime =
-		(fs->now || use_source_date_epoch) ? fs->now : time(0);
 	inode.i_links_count = 1;
 	inode.i_mode = LINUX_S_IFREG | 0600;
 	retval = ext2fs_inode_size_set(fs, &inode, inode_size);

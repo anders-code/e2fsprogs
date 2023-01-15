@@ -117,15 +117,23 @@ static errcode_t add_link(ext2_filsys fs, ext2_ino_t parent_ino,
 	return retval;
 }
 
+static void set_inode_timex(__u32 *p, __u32 *px, const struct timespec *ts)
+{
+    ext2fs_set_inode_timex(p, px, 
+		use_source_date_epoch ? source_date_epoch : ts->tv_sec,
+		use_source_date_epoch ? 42 : ts->tv_nsec);
+}
+
 /* Set the uid, gid, mode and time for the inode */
 static errcode_t set_inode_extra(ext2_filsys fs, ext2_ino_t ino,
 				 struct stat *st)
 {
 	errcode_t		retval;
-	struct ext2_inode	inode;
+	struct ext2_inode_large	inode;
 
-	retval = ext2fs_read_inode(fs, ino, &inode);
-        if (retval) {
+	retval = ext2fs_read_inode2(fs, ino, (struct ext2_inode *)&inode,
+		sizeof(inode), 0);
+	if (retval) {
 		com_err(__func__, retval, _("while reading inode %u"), ino);
 		return retval;
 	}
@@ -135,11 +143,14 @@ static errcode_t set_inode_extra(ext2_filsys fs, ext2_ino_t ino,
 	inode.i_gid = st->st_gid;
 	ext2fs_set_i_gid_high(inode, st->st_gid >> 16);
 	inode.i_mode = (LINUX_S_IFMT & inode.i_mode) | (~S_IFMT & st->st_mode);
-	inode.i_atime = use_source_date_epoch ? source_date_epoch : st->st_atime;
-	inode.i_mtime = use_source_date_epoch ? source_date_epoch : st->st_mtime;
-	inode.i_ctime = use_source_date_epoch ? source_date_epoch : st->st_ctime;
 
-	retval = ext2fs_write_inode(fs, ino, &inode);
+	set_inode_timex(&inode.i_atime,  &inode.i_atime_extra,  &st->st_atim);
+	set_inode_timex(&inode.i_mtime,  &inode.i_mtime_extra,  &st->st_mtim);
+	set_inode_timex(&inode.i_ctime,  &inode.i_ctime_extra,  &st->st_ctim);
+	set_inode_timex(&inode.i_crtime, &inode.i_crtime_extra, &st->st_ctim);
+
+	retval = ext2fs_write_inode2(fs, ino, (struct ext2_inode *)&inode,
+		sizeof(inode), 0);
 	if (retval)
 		com_err(__func__, retval, _("while writing inode %u"), ino);
 	return retval;
@@ -317,8 +328,6 @@ errcode_t do_mknod_internal(ext2_filsys fs, ext2_ino_t cwd, const char *name,
 	ext2fs_inode_alloc_stats2(fs, ino, +1, 0);
 	memset(&inode, 0, sizeof(inode));
 	inode.i_mode = mode;
-	inode.i_atime = inode.i_ctime = inode.i_mtime =
-		(fs->now || use_source_date_epoch) ? fs->now : time(0);
 
 	if (filetype != S_IFIFO) {
 		devmajor = major(st_rdev);
@@ -692,8 +701,6 @@ errcode_t do_write_internal(ext2_filsys fs, ext2_ino_t cwd, const char *src,
 	ext2fs_inode_alloc_stats2(fs, newfile, +1, 0);
 	memset(&inode, 0, sizeof(inode));
 	inode.i_mode = (statbuf.st_mode & ~S_IFMT) | LINUX_S_IFREG;
-	inode.i_atime = inode.i_ctime = inode.i_mtime =
-		(fs->now || use_source_date_epoch) ? fs->now : time(0);
 	inode.i_links_count = 1;
 	retval = ext2fs_inode_size_set(fs, &inode, statbuf.st_size);
 	if (retval)
@@ -1087,6 +1094,7 @@ errcode_t populate_fs2(ext2_filsys fs, ext2_ino_t parent_ino,
 	struct file_info file_info;
 	struct hdlinks_s hdlinks;
 	errcode_t retval;
+	struct stat st;
 
 	if (!(fs->flags & EXT2_FLAG_RW)) {
 		com_err(__func__, 0, "Filesystem opened readonly");
@@ -1105,6 +1113,19 @@ errcode_t populate_fs2(ext2_filsys fs, ext2_ino_t parent_ino,
 	file_info.path_len = 0;
 	file_info.path_max_len = 255;
 	file_info.path = calloc(file_info.path_max_len, 1);
+
+	if (lstat(source_dir, &st)) {
+		retval = errno;
+		com_err(__func__, retval, _("while lstat \"%s\""), source_dir);
+		goto out;
+	}
+
+	retval = set_inode_extra(fs, root, &st);
+	if (retval) {
+		com_err(__func__, retval,
+			_("while copying xattrs on root directory"));
+		goto out;
+	}
 
 	retval = set_inode_xattr(fs, root, source_dir);
 	if (retval) {

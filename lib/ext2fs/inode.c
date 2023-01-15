@@ -1031,6 +1031,13 @@ errcode_t ext2fs_write_inode(ext2_filsys fs, ext2_ino_t ino,
 				   sizeof(struct ext2_inode), 0);
 }
 
+void ext2fs_set_inode_timex(__u32 *p, __u32 *px, __s64 t, __u32 n)
+{
+    *p  = (__u32)t;
+    *px = (((t - (__s32)t) >> 32) & EXT4_EPOCH_MASK) |
+          ((__u32)n << EXT4_EPOCH_BITS);
+}
+
 /*
  * This function should be called when writing a new inode.  It makes
  * sure that extra part of large inodes is initialized properly.
@@ -1042,18 +1049,20 @@ errcode_t ext2fs_write_new_inode(ext2_filsys fs, ext2_ino_t ino,
 	int 			size = EXT2_INODE_SIZE(fs->super);
 	struct ext2_inode_large	*large_inode;
 	errcode_t		retval;
-	__u32 			t = (fs->now || use_source_date_epoch) ? fs->now : time(0);
+	time_t 			t = (fs->now || use_source_date_epoch) ? fs->now : time(0);
+	__u32			n = use_source_date_epoch ? source_date_epoch_ns : 0;
 
-	if (!inode->i_ctime)
-		inode->i_ctime = t;
-	if (!inode->i_mtime)
-		inode->i_mtime = t;
-	if (!inode->i_atime)
-		inode->i_atime = t;
+	if (size == sizeof(struct ext2_inode)) {
+		if (!inode->i_ctime)
+			inode->i_ctime = t;
+		if (!inode->i_mtime)
+			inode->i_mtime = t;
+		if (!inode->i_atime)
+			inode->i_atime = t;
 
-	if (size == sizeof(struct ext2_inode))
 		return ext2fs_write_inode_full(fs, ino, inode,
 					       sizeof(struct ext2_inode));
+	}
 
 	buf = malloc(size);
 	if (!buf)
@@ -1065,8 +1074,22 @@ errcode_t ext2fs_write_new_inode(ext2_filsys fs, ext2_ino_t ino,
 	large_inode = (struct ext2_inode_large *) buf;
 	large_inode->i_extra_isize = sizeof(struct ext2_inode_large) -
 		EXT2_GOOD_OLD_INODE_SIZE;
+
 	if (!large_inode->i_crtime)
-		large_inode->i_crtime = t;
+		ext2fs_set_inode_crtime(large_inode, t, n);
+
+	if (!inode->i_ctime) {
+		inode->i_ctime = t;
+		ext2fs_set_inode_ctime(large_inode, t, n);
+	}
+	if (!inode->i_mtime) {
+		inode->i_mtime = t;
+		ext2fs_set_inode_mtime(large_inode, t, n);
+	}
+	if (!inode->i_atime) {
+		inode->i_atime = t;
+		ext2fs_set_inode_atime(large_inode, t, n);
+	}
 
 	retval = ext2fs_write_inode_full(fs, ino, buf, size);
 	free(buf);

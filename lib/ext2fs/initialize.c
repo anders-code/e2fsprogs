@@ -52,6 +52,7 @@
 
 int use_source_date_epoch;
 time_t source_date_epoch;
+__u32  source_date_epoch_ns;
 
 /*
  * Calculate the number of GDT blocks to reserve for online filesystem growth.
@@ -138,6 +139,10 @@ errcode_t ext2fs_initialize(const char *name, int flags,
 		use_source_date_epoch = 1;
 		source_date_epoch = strtoul(time_env, NULL, 0);
 		fs->now = source_date_epoch;
+
+		time_env = getenv("SOURCE_DATE_EPOCH_NS");
+		if (time_env)
+			source_date_epoch_ns = strtoul(time_env, NULL, 0);
 	}
 
 	io_flags = IO_FLAG_RW;

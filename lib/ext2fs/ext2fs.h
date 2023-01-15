@@ -1514,6 +1514,7 @@ errcode_t ext2fs_write_ind_block(ext2_filsys fs, blk_t blk, void *buf);
 /* initialize.c */
 extern int use_source_date_epoch;
 extern time_t source_date_epoch;
+extern __u32  source_date_epoch_ns;
 
 extern errcode_t ext2fs_initialize(const char *name, int flags,
 				   struct ext2_super_block *param,
@@ -1558,6 +1559,21 @@ extern errcode_t ext2fs_inline_data_set(ext2_filsys fs, ext2_ino_t ino,
 					void *buf, size_t size);
 
 /* inode.c */
+extern void ext2fs_set_inode_timex(__u32 *p, __u32 *px, __s64 t, __u32 n);
+
+#define ext2fs_set_inode_ctime(i, t, n) ext2fs_set_inode_timex( \
+                 &(i)->i_ctime, \
+                 &(i)->i_ctime_extra, (t), (n))
+#define ext2fs_set_inode_atime(i, t, n) ext2fs_set_inode_timex( \
+                 &(i)->i_atime, \
+                 &(i)->i_atime_extra, (t), (n))
+#define ext2fs_set_inode_mtime(i, t, n) ext2fs_set_inode_timex( \
+                 &(i)->i_mtime, \
+                 &(i)->i_mtime_extra, (t), (n))
+#define ext2fs_set_inode_crtime(i, t, n) ext2fs_set_inode_timex( \
+                 &(i)->i_crtime, \
+                 &(i)->i_crtime_extra, (t), (n))
+
 extern errcode_t ext2fs_create_inode_cache(ext2_filsys fs,
 					   unsigned int cache_size);
 extern void ext2fs_free_inode_cache(struct ext2_inode_cache *icache);
